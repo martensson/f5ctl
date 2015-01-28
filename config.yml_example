@@ -1,0 +1,11 @@
+---
+apiuser: "admin"
+apipass: "test"
+lbuser: "admin"
+lbpass: "test"
+felles: 
+    - "malbint01"
+    - "malbint02"
+dmz: 
+    - "malb01"
+    - "malb02"
