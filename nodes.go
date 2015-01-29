@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net"
 	"net/http"
 
@@ -16,11 +17,14 @@ type Node struct {
 }
 type Nodes map[string]Node
 
-func FindNodes(host string, search string) Nodes {
+func FindNodes(host string, search string) (Nodes, error) {
 	ip := net.ParseIP(search)
 	var json *jason.Object
 	nodes := Nodes{}
-	json = GetReq(host, "/mgmt/tm/ltm/node")
+	json, err := GetReq(host, "/mgmt/tm/ltm/node")
+	if err != nil {
+		return nil, err
+	}
 	items, _ := json.GetObjectArray("items")
 	for _, value := range items {
 		if ip != nil {
@@ -47,7 +51,7 @@ func FindNodes(host string, search string) Nodes {
 		node.Session = session
 		nodes[address] = node
 	}
-	return nodes
+	return nodes, nil
 }
 
 func GetNodes(w rest.ResponseWriter, r *rest.Request) {
@@ -63,7 +67,16 @@ func GetNodes(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Env not found", 404)
 		return
 	}
-	nodes := FindNodes(host, search)
+	if host == "" {
+		rest.Error(w, "No active ltm", http.StatusInternalServerError)
+		return
+	}
+	nodes, err := FindNodes(host, search)
+	if err != nil {
+		log.Panic(err)
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("X-F5", host)
 	if len(nodes) > 0 {
 		w.WriteJson(nodes)
@@ -97,7 +110,15 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Env not found", 404)
 		return
 	}
-	nodes := FindNodes(host, search)
+	if host == "" {
+		rest.Error(w, "No active ltm", http.StatusInternalServerError)
+		return
+	}
+	nodes, err := FindNodes(host, search)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("X-F5", host)
 	if len(nodes) == 1 {
 		var node Node
@@ -106,19 +127,31 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 		}
 		if payload["State"] == "enabled" {
 			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-up", "session": "user-enabled"}`))
-			nodes := FindNodes(host, search)
+			nodes, err := FindNodes(host, search)
+			if err != nil {
+				rest.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			w.WriteJson(nodes)
 			return
 		}
 		if payload["State"] == "disabled" {
 			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-up", "session": "user-disabled"}`))
-			nodes := FindNodes(host, search)
+			nodes, err := FindNodes(host, search)
+			if err != nil {
+				rest.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			w.WriteJson(nodes)
 			return
 		}
 		if payload["State"] == "forced-offline" {
 			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-down", "session": "user-disabled"}`))
-			nodes := FindNodes(host, search)
+			nodes, err := FindNodes(host, search)
+			if err != nil {
+				rest.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			w.WriteJson(nodes)
 			return
 		}

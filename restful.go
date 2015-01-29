@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,51 +12,57 @@ import (
 	"github.com/antonholmquist/jason"
 )
 
-func GetReq(host string, uri string) *jason.Object {
+func GetReq(host string, uri string) (*jason.Object, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	req, err := http.NewRequest("GET", "https://"+host+uri, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	req.SetBasicAuth(cfg.Lbuser, cfg.Lbpass)
 	client := &http.Client{Transport: tr}
 	rsp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer rsp.Body.Close()
+	if rsp.StatusCode != 200 {
+		return nil, errors.New("Got '" + rsp.Status + "' from ltm.")
+	}
 	body, err := ioutil.ReadAll(rsp.Body)
 	json, err := jason.NewObjectFromBytes(body)
 	if err != nil {
-		log.Fatal("Problem parsing json resp: ", err)
+		log.Println("Problem parsing json resp: ", err)
 	}
-	return json
+	return json, nil
 }
 
-func PutReq(host string, uri string, payload []byte) *jason.Object {
+func PutReq(host string, uri string, payload []byte) (*jason.Object, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	req, err := http.NewRequest("PUT", "https://"+host+uri, bytes.NewBuffer(payload))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.SetBasicAuth(cfg.Lbuser, cfg.Lbpass)
 	client := &http.Client{Transport: tr}
 	rsp, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer rsp.Body.Close()
+	if rsp.StatusCode != 200 {
+		return nil, errors.New("Got '" + rsp.Status + "' from ltm.")
+	}
 	body, err := ioutil.ReadAll(rsp.Body)
 	json, err := jason.NewObjectFromBytes(body)
 	if err != nil {
-		log.Fatal("Problem parsing json resp: ", err)
+		log.Println("Problem parsing json resp: ", err)
 	}
-	return json
+	return json, nil
 }
 
 func GetActive(lbs []string) string {
@@ -67,7 +74,11 @@ func GetActive(lbs []string) string {
 		go func(lb string) {
 			// Decrement the counter when the goroutine completes.
 			defer wg.Done()
-			json := GetReq(lb, "/mgmt/tm/cm/failover-status")
+			json, err := GetReq(lb, "/mgmt/tm/cm/failover-status")
+			if err != nil {
+				log.Println(err)
+				return
+			}
 			status, _ := json.GetObject("entries")
 			for _, value := range status.Map() {
 				entries, _ := value.Object()
