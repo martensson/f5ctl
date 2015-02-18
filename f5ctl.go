@@ -34,34 +34,37 @@ func main() {
 	if err != nil {
 		log.Fatal("Problem parsing config: ", err)
 	}
-
-	handler := rest.ResourceHandler{
-		EnableRelaxedContentType: true,
-		EnableStatusService:      true,
-		XPoweredBy:               "f5ctl",
-		EnableLogAsJson:          false,
-		PreRoutingMiddlewares: []rest.Middleware{
-			&rest.AuthBasicMiddleware{
-				Realm: "f5ctl",
-				Authenticator: func(userId string, password string) bool {
-					if userId == cfg.Apiuser && password == cfg.Apipass {
-						return true
-					}
-					return false
-				},
-			},
+	api := rest.NewApi()
+	//api.Use(rest.DefaultProdStack...)
+	statusMw := &rest.StatusMiddleware{}
+	api.Use(statusMw)
+	api.Use(&rest.AccessLogApacheMiddleware{Format: rest.CombinedLogFormat})
+	api.Use(&rest.TimerMiddleware{})
+	api.Use(&rest.RecorderMiddleware{})
+	api.Use(&rest.PoweredByMiddleware{XPoweredBy: "f5ctl"})
+	api.Use(&rest.RecoverMiddleware{})
+	api.Use(&rest.GzipMiddleware{})
+	api.Use(&rest.JsonIndentMiddleware{})
+	api.Use(&rest.AuthBasicMiddleware{
+		Realm: "f5ctl",
+		Authenticator: func(userId string, password string) bool {
+			if userId == cfg.Apiuser && password == cfg.Apipass {
+				return true
+			}
+			return false
 		},
-	}
-	handler.SetRoutes(
+	})
+	router, err := rest.MakeRouter(
 		&rest.Route{"GET", "/",
 			func(w rest.ResponseWriter, r *rest.Request) {
-				w.WriteJson(handler.GetStatus())
+				w.WriteJson(statusMw.GetStatus())
 			},
 		},
 		&rest.Route{"GET", "/v1/nodes/:env/#search", GetNodes},
 		&rest.Route{"GET", "/v1/nodes/:env/", GetNodes},
 		&rest.Route{"PUT", "/v1/nodes/:env/#search", PutNodes},
 	)
+	api.SetApp(router)
 	log.Println("Starting f5ctl on :" + *port)
-	http.ListenAndServe(":"+*port, &handler)
+	log.Fatal(http.ListenAndServe(":"+*port, api.MakeHandler()))
 }
