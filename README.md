@@ -1,8 +1,10 @@
 # f5ctl
 
-*A quick and easy way to control clusters of F5 BIGIPs*
+*A REST API Proxy to quick and easy control clusters of F5 BIGIPs*
 
-f5ctl is built in Go for easy deployment, concurrency and simplicity. 
+f5ctl is built in Go for easy deployment, concurrency and simplicity.
+
+It serves a simple REST API that can be used to get status on nodes and to change their status. It will auto-detect the Bigip that is Active in a cluster.
 
 ### Installing from source
 
@@ -10,6 +12,7 @@ f5ctl is built in Go for easy deployment, concurrency and simplicity.
 
 * Git
 * Go 1.4+
+* F5 LTM 11.4+ with REST API Enabled
 
 #### Clone and Build locally:
 
