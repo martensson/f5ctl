@@ -49,8 +49,9 @@ f5:
 ./f5ctl -p 5000 -f /path/to/config.yml
 ```
 or just
+
 ``` sh
-./f5ctl -p 5000 -f /path/to/config.yml
+./f5ctl
 ```
 
 ### CURL Examples
