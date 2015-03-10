@@ -17,11 +17,11 @@ type Node struct {
 }
 type Nodes map[string]Node
 
-func FindNodes(host string, search string) (Nodes, error) {
+func FindNodes(host string, search string, user string, pass string) (Nodes, error) {
 	ip := net.ParseIP(search)
 	var json *jason.Object
 	nodes := Nodes{}
-	json, err := GetReq(host, "/mgmt/tm/ltm/node")
+	json, err := GetReq(host, "/mgmt/tm/ltm/node", user, pass)
 	if err != nil {
 		return nil, err
 	}
@@ -58,12 +58,9 @@ func GetNodes(w rest.ResponseWriter, r *rest.Request) {
 	env := r.PathParam("env")
 	search := r.PathParam("search")
 	host := ""
-	switch env {
-	case "felles":
-		host = GetActive(cfg.Felles)
-	case "dmz":
-		host = GetActive(cfg.Dmz)
-	default:
+	if bigip, ok := cfg.F5[env]; ok {
+		host = GetActive(bigip.Ltm, bigip.User, bigip.Pass)
+	} else {
 		rest.Error(w, "Env not found", 404)
 		return
 	}
@@ -71,7 +68,7 @@ func GetNodes(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "No active ltm", http.StatusInternalServerError)
 		return
 	}
-	nodes, err := FindNodes(host, search)
+	nodes, err := FindNodes(host, search, cfg.F5[env].User, cfg.F5[env].Pass)
 	if err != nil {
 		log.Panic(err)
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -101,12 +98,9 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	host := ""
-	switch env {
-	case "felles":
-		host = GetActive(cfg.Felles)
-	case "dmz":
-		host = GetActive(cfg.Dmz)
-	default:
+	if bigip, ok := cfg.F5[env]; ok {
+		host = GetActive(bigip.Ltm, bigip.User, bigip.Pass)
+	} else {
 		rest.Error(w, "Env not found", 404)
 		return
 	}
@@ -114,7 +108,7 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "No active ltm", http.StatusInternalServerError)
 		return
 	}
-	nodes, err := FindNodes(host, search)
+	nodes, err := FindNodes(host, search, cfg.F5[env].User, cfg.F5[env].Pass)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -126,8 +120,8 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 			node = n
 		}
 		if payload["State"] == "enabled" {
-			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-up", "session": "user-enabled"}`))
-			nodes, err := FindNodes(host, search)
+			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-up", "session": "user-enabled"}`), cfg.F5[env].User, cfg.F5[env].Pass)
+			nodes, err := FindNodes(host, search, cfg.F5[env].User, cfg.F5[env].Pass)
 			if err != nil {
 				rest.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -136,8 +130,8 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		if payload["State"] == "disabled" {
-			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-up", "session": "user-disabled"}`))
-			nodes, err := FindNodes(host, search)
+			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-up", "session": "user-disabled"}`), cfg.F5[env].User, cfg.F5[env].Pass)
+			nodes, err := FindNodes(host, search, cfg.F5[env].User, cfg.F5[env].Pass)
 			if err != nil {
 				rest.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -146,8 +140,8 @@ func PutNodes(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		if payload["State"] == "forced-offline" {
-			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-down", "session": "user-disabled"}`))
-			nodes, err := FindNodes(host, search)
+			PutReq(host, "/mgmt/tm/ltm/node/"+node.Name, []byte(`{"state": "user-down", "session": "user-disabled"}`), cfg.F5[env].User, cfg.F5[env].Pass)
+			nodes, err := FindNodes(host, search, cfg.F5[env].User, cfg.F5[env].Pass)
 			if err != nil {
 				rest.Error(w, err.Error(), http.StatusInternalServerError)
 				return

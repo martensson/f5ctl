@@ -12,7 +12,7 @@ import (
 	"github.com/antonholmquist/jason"
 )
 
-func GetReq(host string, uri string) (*jason.Object, error) {
+func GetReq(host string, uri string, user string, pass string) (*jason.Object, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -20,7 +20,7 @@ func GetReq(host string, uri string) (*jason.Object, error) {
 	if err != nil {
 		log.Println(err)
 	}
-	req.SetBasicAuth(cfg.Lbuser, cfg.Lbpass)
+	req.SetBasicAuth(user, pass)
 	client := &http.Client{Transport: tr}
 	rsp, err := client.Do(req)
 	if err != nil {
@@ -38,7 +38,7 @@ func GetReq(host string, uri string) (*jason.Object, error) {
 	return json, nil
 }
 
-func PutReq(host string, uri string, payload []byte) (*jason.Object, error) {
+func PutReq(host string, uri string, payload []byte, user string, pass string) (*jason.Object, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -47,7 +47,7 @@ func PutReq(host string, uri string, payload []byte) (*jason.Object, error) {
 		log.Println(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth(cfg.Lbuser, cfg.Lbpass)
+	req.SetBasicAuth(pass, pass)
 	client := &http.Client{Transport: tr}
 	rsp, err := client.Do(req)
 	if err != nil {
@@ -65,7 +65,7 @@ func PutReq(host string, uri string, payload []byte) (*jason.Object, error) {
 	return json, nil
 }
 
-func GetActive(lbs []string) string {
+func GetActive(lbs []string, user string, pass string) string {
 	active := ""
 	var wg sync.WaitGroup
 	for _, lb := range lbs {
@@ -74,7 +74,7 @@ func GetActive(lbs []string) string {
 		go func(lb string) {
 			// Decrement the counter when the goroutine completes.
 			defer wg.Done()
-			json, err := GetReq(lb, "/mgmt/tm/cm/failover-status")
+			json, err := GetReq(lb, "/mgmt/tm/cm/failover-status", user, pass)
 			if err != nil {
 				log.Println(err)
 				return

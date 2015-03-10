@@ -1,11 +1,16 @@
 ---
 apiuser: "admin"
-apipass: "test"
-lbuser: "admin"
-lbpass: "test"
-felles: 
-    - "malbint01"
-    - "malbint02"
-dmz: 
-    - "malb01"
-    - "malb02"
+apipass: "admin"
+f5:
+    external:
+        user: "admin"
+        pass: "admin"
+        ltm:
+            - "ltmext01"
+            - "ltmext02"
+    internal:
+        user: "admin"
+        pass: "admin"
+        ltm:
+            - "ltmint01"
+            - "ltmint02"

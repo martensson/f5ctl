@@ -11,13 +11,18 @@ import (
 	"gopkg.in/yaml.v1"
 )
 
+type Bigip struct {
+	User string
+	Pass string
+	Ltm  []string
+}
+
+type f5 map[string]Bigip
+
 type Config struct {
 	Apiuser string
 	Apipass string
-	Lbuser  string
-	Lbpass  string
-	Felles  []string
-	Dmz     []string
+	F5      f5
 }
 
 var cfg Config
